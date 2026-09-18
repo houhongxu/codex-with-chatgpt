@@ -99,6 +99,36 @@ describe("parseQuickTunnelUrl", () => {
 });
 
 describe("CloudflaredQuickTunnel", () => {
+  it("allows a new public address to become healthy after a minute", async () => {
+    vi.useFakeTimers();
+    const child = new FakeCloudflaredProcess();
+    const startedAt = Date.now();
+    let outcome: { url?: string; error?: string } | undefined;
+    const tunnel = new CloudflaredQuickTunnel(undefined, "cloudflared", {
+      spawnImpl: () => child as unknown as ChildProcess,
+      fetchImpl: async () => {
+        if (Date.now() - startedAt < 65_000) throw new Error("ECONNRESET");
+        return healthResponse();
+      },
+    });
+    try {
+      const starting = tunnel.start(3333).then(
+        (url) => { outcome = { url }; },
+        (error: Error) => { outcome = { error: error.message }; }
+      );
+      announceUrl(child);
+      await vi.advanceTimersByTimeAsync(64_000);
+      expect(outcome).toBeUndefined();
+      expect(child.killed).toBe(false);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await starting;
+      expect(outcome).toEqual({ url: QUICK_URL });
+    } finally {
+      await tunnel.stop();
+      vi.useRealTimers();
+    }
+  });
+
   it("resolves only after the public health endpoint identifies the bridge", async () => {
     const fetchImpl = vi.fn(async () => healthResponse());
     const { child, spawnImpl, tunnel } = setupTunnel(fetchImpl);
