@@ -126,3 +126,5 @@ Preserve the connector and checkpoint. Report the observed failure rather than
 resetting setup from scratch: restarting can change the temporary address.
 Continue independent general queries, and request only the action needed to
 restore workspace access. Never delete a plugin as a generic recovery step.
+
+只读工程查询也不会自动运行 doctor、更新或修复。若已有连接不可用，说明未能验证的本机信息；用户明确要求恢复后再进入上述修复流程。

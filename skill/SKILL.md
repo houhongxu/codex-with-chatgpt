@@ -57,7 +57,9 @@ or confirmation step: use ChatGPT's current setting.
    remember its URL in this thread. Do not require a Project or save a generic
    query chat over a workspace's session/checkpoint. Never borrow an unrelated
    task's conversation just because it is open.
-2. Send the user's question directly, retaining its constraints and useful
+2. Before sending, wait for any in-progress reply in this chat to finish; do
+   not interrupt a coding review or enqueue a query into its unfinished turn.
+   Send the user's question directly, retaining its constraints and useful
    context. Make the route explicit, especially in an existing coding chat:
    "本次仅查询，请用中文回答，不要规划或执行修改。不需要访问本机工程。
    涉及时效信息或需要来源时请联网查证，并附上实际读取的来源链接。"
@@ -80,19 +82,24 @@ or confirmation step: use ChatGPT's current setting.
 ## Workflow: workspace query
 
 Use this only when the answer actually depends on local workspace data.
-Reuse the current workspace and its existing connector. Apply the connection
-checks and conversation binding from **Coding task** steps 0–1, but skip the
-coding boot/INIT/PLAN. If a coding task is still generating, wait for its
-reply before sending a query on that chat. Do not resume, overwrite or clear an in-progress
-coding checkpoint merely to answer a question. For a new workspace chat,
-verify workspace_info before binding its URL, then send the query-only request.
+Reuse the current workspace and its existing connector. Read existing session
+metadata only if needed to identify its connector and conversation mode; do
+not run the coding workflow's steps 0–1. Skip update checks, sandbox writes,
+doctor (it auto-repairs), setup, pairing, repair and coding boot/INIT/PLAN.
+Wait for any generating reply before sending the query. Do not resume,
+overwrite or clear an in-progress coding checkpoint. Reuse this thread's
+workspace-bound chat; if none exists, use its existing Project/mode to open
+a chat, verify workspace_info and remember the URL in thread context without
+changing an active workspace session. Missing Project/binding is a limitation,
+not permission to create/configure one during a query.
 
 Ask ChatGPT to read only the relevant files through the exact connector and
 answer with file/line evidence. It may read recorded test results, but neither
-agent runs tests or applies fixes in this route. If required access is missing,
-report what could not be verified and use non-destructive repair; do not infer
-local facts from memory. General parts of the question can still be answered
-without the connector. A later request to apply a fix starts the full workflow.
+agent runs tests, applies fixes or repairs configuration in this route. If
+required access is missing, report what could not be verified; do not infer
+local facts from memory. General parts can still be answered directly. An
+explicit request to restore access uses the non-destructive repair workflow;
+a later request to apply a fix starts the full workflow.
 
 `query-only` and `workspace query` are intent routes, not new persisted
 conversation modes or coding protocol states.
@@ -106,7 +113,9 @@ conversation modes or coding protocol states.
    field labels/values the user must enter, without explaining internals.
 3. The pairing code is the ONLY credential you may ever type into a browser.
    Never touch OAuth tokens, cookies, or session storage.
-4. If workspace access fails, run `c2c doctor` and repair non-destructively.
+4. If workspace access fails during an action/repair task, run `c2c doctor`
+   and repair non-destructively. A workspace query reports missing access
+   without starting repair.
    General query/browser failures never trigger doctor or connector setup.
    Only involve the user for logins, CAPTCHA, 2FA, explicit consent screens, or **guided manual
    ChatGPT setup** below — and then give them ONE action.
@@ -163,8 +172,8 @@ conversation modes or coding protocol states.
    ONCE. After `{ "alreadyAllowed": true }` or `{ "added": true }`, stay silent.
 8. ChatGPT pages: only the URLs in **In-app browser (ChatGPT)**. Never start
    from chatgpt.com and click through menus.
-9. **Doctor gate (workspace access only).** General query-only chat bypasses
-   this gate. After `c2c doctor --json`, do not start workspace access and do not
+9. **Doctor gate (workspace action/repair tasks only).** Both query routes
+   bypass this gate and never invoke auto-repair. After `c2c doctor --json`, do not start workspace access and do not
    send `[C2C]` until local is green — except the reconnect settings pages when
    `chatgptRepair.needed` is true. Not green:
    - `report.bridge.ok` is not true
@@ -286,9 +295,9 @@ that close the tab, hide the window, or stall on the settings page.
 
 ## Daily update check
 
-For workspace and explicit maintenance workflows only, after routing and
-before their connection steps, run these two commands. General query-only
-chat skips this entire section (including auto-update and sandbox writes):
+For coding/action and explicit maintenance workflows only, after routing and
+before their connection steps, run these two commands. Both query routes
+skip this entire section (including auto-update and sandbox writes):
 
 1. `c2c update-check --json` (do not pass `-w`)
 2. `c2c sandbox-allow --json` (do not pass `-w`) — writes the C2C state directory into Codex's
@@ -748,7 +757,7 @@ TESTS:
 
 `chatgptRepair.needed` / `connectorAction: "update"` reports an address
 change, not permission to delete or replace a plugin. This workflow applies
-only when the task needs workspace access; general queries continue directly.
+only for an action or explicit repair task; queries do not start repair.
 
 1. Keep the connector, Project, saved chat and checkpoint. Tell the user the
    address changed using `chatgptRepair.userMessage`. Respect the saved setup
@@ -775,8 +784,9 @@ only when the task needs workspace access; general queries continue directly.
 
 ## Workflow: repair（workspace access only）
 
-1. For a general query, handle the ChatGPT page directly; do not enter this
-   workflow. For workspace access, run `c2c doctor -w <workspace> --json`.
+1. Neither query route enters this workflow. General queries use ChatGPT
+   directly; workspace queries report missing access. For an action or
+   explicitly requested repair, run `c2c doctor -w <workspace> --json`.
    Diagnose local connectivity separately from ChatGPT authorization. Keep
    the existing plugin; a browser timeout or generic account error alone
    does not justify restarting a healthy bridge, replacing a URL or pairing.
@@ -792,7 +802,7 @@ only when the task needs workspace access; general queries continue directly.
 | Symptom | Action |
 | --- | --- |
 | Bridge not running | `c2c start` (doctor does this automatically) |
-| Tunnel dead / URL unreachable / 全关掉后连接失效 | Workspace tasks: doctor, then existing-connector authorization or supported in-place URL update. If unavailable, preserve it and report the blocker. Never delete/recreate. General queries need no repair. |
+| Tunnel dead / URL unreachable / 全关掉后连接失效 | Workspace action/repair tasks: doctor, then existing-connector authorization or supported in-place URL update. If unavailable, preserve it and report the blocker. Never delete/recreate. General queries need no repair. |
 | Collection page shows only Retry | Same iab tab: Retry once, then open the last working chat and click its Project link. Do not write INIT/EXECUTED waiting checkpoints until the message is visible. |
 | ChatGPT tool call failed / 401 | Inspect the error first. For confirmed authorization failure at the same address, reauthorize the existing connector with a fresh pairing code. Generic tool errors are not proof of expired credentials; never delete/recreate. |
 | Pairing code rejected/expired | `c2c pair --json` for a fresh code |

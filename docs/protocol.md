@@ -14,7 +14,9 @@ connector, doctor, pairing, coding boot prompt or model/effort selection.
 They do not enter the state machine below or change a coding checkpoint.
 
 Workspace-specific questions may use the existing read-only connector but
-still do not execute a plan, run tests or mutate project files. A suggestion
+still do not execute a plan, run tests, mutate project files, auto-update or
+repair configuration. Missing access is reported; repair requires an explicit
+action request. Wait for an in-progress reply before sending a query. A suggestion
 in an answer does not authorize execution. Explicit action requests retain
 the full INIT → PLAN → EXECUTED → REVIEW loop.
 
