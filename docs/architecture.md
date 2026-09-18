@@ -28,6 +28,14 @@
              └─────────────────────┘
 ```
 
+## Query and execution routes
+
+General informational requests go directly through the ChatGPT web composer
+and response. They do not depend on the local bridge, OAuth, a workspace or a
+Project. Workspace questions add read-only MCP access. Requested actions keep
+the planning/execution/review loop. Routing lives in the Skill, not a new CLI
+query command or hidden ChatGPT API. Current model/effort is left unchanged.
+
 ## Principles
 
 - **ChatGPT thinks. Codex works.** The bridge never re-implements a coding harness.
@@ -68,8 +76,9 @@ whether the occupant is a c2c bridge for the same workspace (reuse) or not
 runtime state file; users never see ports.
 
 **Tunnel**: default is a Cloudflare Quick Tunnel (`cloudflared tunnel --url …`).
-The URL changes per start, so `c2c doctor` can restart it and tell the Skill to
-Delete + recreate that workspace's ChatGPT connector. A workspace may instead
+The URL can change after restart. Preserve the existing ChatGPT connector and
+update its URL in place if supported; otherwise report blocked workspace
+access. Never delete/recreate the connector to repair it. A workspace may instead
 choose a named hostname once (`c2c tunnel choose --mode named`). The Skill asks
 before the first public URL exists; `cloudflared tunnel login` is the only extra
 user step. Tunnel name, hostname and preference live under the OS state dir

@@ -5,7 +5,28 @@ Data plane: MCP (ChatGPT pulls files, diffs, search results itself).
 
 Never mix the two: control messages carry state, never content.
 
-## States
+## Query-only routing
+
+The Skill recognizes `cwc` case-insensitively and routes informational requests
+before any local setup. General queries use ordinary ChatGPT messages and
+answers, with web search when needed. They require no workspace, Project,
+connector, doctor, pairing, coding boot prompt or model/effort selection.
+They do not enter the state machine below or change a coding checkpoint.
+
+Workspace-specific questions may use the existing read-only connector but
+still do not execute a plan, run tests, mutate project files, auto-update or
+repair configuration. Missing access is reported; repair requires an explicit
+action request. Wait for an in-progress reply before sending a query. A suggestion
+in an answer does not authorize execution. Explicit action requests retain
+the full INIT → PLAN → EXECUTED → REVIEW loop.
+
+Reuse the chat bound to this Codex thread. A new workspace chat reuses the
+same connector; never delete/recreate a connector because a chat changed or
+a tool call failed. All query chat URLs are tracked in thread context and must not replace a
+workspace session pointer. Resume an active coding task at checkpoint.chatUrl
+and verify its TASK_ID; a generic chat URL is not verified workspace binding. See the Skill for route details.
+
+## States (action requests only)
 
 ```
 INIT → PLAN → EXECUTING → EXECUTED → REVIEW → PLAN | DONE | BLOCKED | ERROR
@@ -46,6 +67,13 @@ iteration after this version writes a checkpoint automatically.
 Do not re-pair, recreate the connector, or rewrite Project instructions
 just to resume.
 
+## Communication language
+
+All natural-language requests, plans, reviews, answers and user-facing updates
+use Chinese. Keep `[C2C]`, header keys, state values, code, commands, paths and
+URLs unchanged. Translate prose in legacy examples before sending it. Explicit
+requests for a different output language apply to the requested content only.
+
 ## Message format
 
 Every control message starts with `[C2C]` and key-value headers, then sections.
@@ -60,11 +88,11 @@ TASK_ID: c2c_f81a
 ITERATION: 0
 
 GOAL:
-Implement dark mode.
+实现深色模式。
 
 INSTRUCTION:
-Inspect the connected workspace through Codex with ChatGPT MCP.
-Create an implementation plan for Codex.
+请通过 Codex with ChatGPT MCP 检查当前工程，
+用中文给出供 Codex 执行的实施方案。
 ```
 
 ### PLAN (ChatGPT → Codex)
@@ -107,7 +135,7 @@ TASK_ID: c2c_f81a
 ITERATION: 1
 
 RESULT:
-Execution finished.
+本轮执行已完成。
 
 CHANGED_FILES:
 4
@@ -115,9 +143,9 @@ CHANGED_FILES:
 TESTS:
 27 passed
 
-Please independently inspect the workspace and current git diff through MCP.
-If execution_output lists a readable item for this iteration, list then read it.
-If status is restricted, ignore it and review from git_diff.
+请通过 MCP 独立检查工程和当前 git diff，并用中文反馈。
+如果 execution_output 有本轮可读取的记录，请先列出再读取；
+若记录受限，请从 git_diff 复核，不要索取日志正文。
 ```
 
 Before sending EXECUTED, Codex records the iteration:
@@ -181,20 +209,20 @@ TASK_ID: c2c_f81a
 ITERATION: 4
 
 ORIGINAL_GOAL:
-Implement dark mode with a persisted user preference.
+实现深色模式，并持久化用户偏好。
 
 PROGRESS:
-- Iter 1-2: theme context + toggle implemented, reviewed OK.
-- Iter 3: persistence added; review found the toggle flashes on load.
+- 第 1–2 轮：主题状态和切换按钮已实现，复核通过。
+- 第 3 轮：已加入持久化；复核发现加载时闪烁。
 
 CURRENT_STATE:
-EXECUTED (iteration 4 fix applied, not yet reviewed).
+EXECUTED（第 4 轮修复已应用，尚待复核）。
 
 KNOWN_ISSUES:
-Flash-on-load fix needs verification in src/theme/ThemeProvider.tsx.
+需要验证 src/theme/ThemeProvider.tsx 的加载闪烁修复。
 
 NEXT_EXPECTED_STEP:
-Independently review iteration 4 via git_diff and reply PLAN or DONE.
+请通过 git_diff 独立复核第 4 轮，并用中文回复 PLAN 或 DONE。
 ```
 
 ## Loop limits
@@ -204,42 +232,28 @@ pauses and asks the user whether to continue.
 
 ## Boot Prompt
 
-Send once at the start of every new C2C conversation:
+Send once at the start of a new coding conversation, not a query-only chat:
 
 ```
-You are the planning and review layer of a Codex coding session.
+你是 Codex 编码任务的规划与复核助手。Codex 负责执行，你负责分析、规划和复核。
+自然语言沟通全部使用中文；C2C 协议字段、代码、命令、路径和专有名词保留原样。
 
-Codex owns execution.
-You own high-level reasoning, planning and review.
+明确标注“仅查询”的请求只需回答，不要给出待执行计划。普通查询不需要本机
+验证或连接器，可按需联网查证；涉及工程的查询只读取必要资料，不执行修改。
 
-You have access to the current local workspace through the
-"Codex with ChatGPT" MCP connector.
+工程资料通过当前项目指定的“Codex with ChatGPT”连接器读取：
+1. 不要求 Codex 粘贴文件、diff 或日志。只读取当前任务需要的文件。
+2. 规划前检查实际代码和 git 状态，给出有限、具体、可执行的 PLAN。
+3. Codex 使用自己的工具执行；收到 EXECUTED 后独立检查真实 diff。
+4. execution_output 有可读取的本轮记录时先列出再读取；受限则从 git 复核。
+5. 不因 Codex 声称成功就假定实施完成，按成功标准判断，避免无关重写。
+6. 操作任务返回 C2C 结构化控制消息。PLAN 和复核需说明理由、涉及文件、
+   具体修改建议及验证方法；不要只有一句结论，也不要拆成冗长计划。
+7. HANDOFF 表示继续已有任务：按摘要了解进展，重新读取必要代码，再从
+   NEXT_EXPECTED_STEP 继续。
+8. 只用本项目指定的连接器读取本机资料，不使用其他工作目录的连接器。
+9. 普通查询直接中文回答，不要求插件，不返回编码计划或执行记录。
 
-Rules:
-
-1. Do not ask Codex to paste files that are available through MCP.
-2. Inspect only the files needed for the task.
-3. Use MCP to inspect current code, git status and diff.
-4. Produce concise executable plans.
-5. Codex will execute your plan using its own harness.
-6. After Codex reports EXECUTED, independently inspect the diff.
-   If execution_output lists a readable item for this iteration, list
-   then read it. If status is restricted, ignore the body and review
-   from git.
-7. Do not assume an implementation succeeded just because Codex says so.
-8. Continue until the implementation satisfies the success criteria.
-9. Avoid unnecessary rewrites.
-10. Return C2C structured control messages.
-11. Be substantive. PLAN and review replies must carry enough signal for
-    Codex to act on: rationale, per-file natural-language suggestions
-    (which file, what to change and why), risks worth checking, and test
-    advice. Never reply with a bare one-liner. Substance over length —
-    but do not generate 40-step epics either.
-12. If you receive a HANDOFF message, this conversation continues an
-    existing task. Trust the handoff brief for history, re-read any code
-    you need through MCP, and resume from NEXT_EXPECTED_STEP.
-13. If this chat sits in a ChatGPT Project, use only the connector named
-    in that Project's instructions. Do not use another workspace's connector.
 ```
 
 ## Project instructions
@@ -250,32 +264,30 @@ Never put a public or temporary URL in the instructions — only the
 connector **name**.
 
 ```
-You are the planning and review layer for one local workspace. Codex executes.
+你负责这个工作目录的规划与复核，Codex 负责执行。自然语言沟通全部使用中文，
+协议字段、代码、命令、路径和专有名词保留原样。
 
-This Project is bound only to:
-- Workspace name: {{workspace_name}}
-- Kind: {{project_type}} ({{languages}} / {{frameworks}})
-- Connector (use this one only): {{connector_name}}
+本项目只绑定：
+- 工作目录名称：{{workspace_name}}
+- 类型：{{project_type}}（{{languages}} / {{frameworks}}）
+- 本机资料连接器（仅用此连接器）：{{connector_name}}
 
-When you call tools, use ONLY that connector. Do not use any other
-Codex with ChatGPT connector. If workspace_info names a different
-workspace, stop. Do not plan. Do not use this Project's memory.
+普通资料查询无需连接器，可按需联网查证并附来源，直接回答，不要求本机验证，
+不返回编码计划。工程查询通过指定连接器读取必要资料，只回答，不执行修改。
+读取本机资料时不要使用其他工作目录的连接器。若 workspace_info 返回不同工作
+目录，停止该工程任务，不规划，不使用本项目记忆。
 
-Read code, git, diffs, and any released command output through that
-connector. Never ask anyone to paste file bodies, diffs, or logs. After
-EXECUTED, call execution_output (list, then read) when a readable item
-exists; if status is restricted, review from git instead. Never upload
-the repo into this Project's files or sources.
+代码、git、diff 和获准读取的执行输出通过连接器读取，不要求粘贴文件或日志。
+收到 EXECUTED 后，有可读 execution_output 时先列出再读取；受限时从 git 复核。
+不要把仓库上传到本项目文件或来源。
 
-When facts conflict, trust this order:
-1. Current code from the connector
-2. A HANDOFF in this chat (this task's goal, progress, next step)
-3. These instructions
-4. This Project's memory (durable architecture only; stale memory loses)
+事实冲突时依次相信：
+1. 连接器读取的当前代码
+2. 本聊天的 HANDOFF（当前目标、进展和下一步）
+3. 本项目指令
+4. 本项目记忆（长期架构信息；过时记忆不能覆盖当前证据）
 
-This Project's memory is only for this workspace. On HANDOFF, trust the
-brief, re-read code through the connector, and resume at NEXT_EXPECTED_STEP.
-
-Be substantive: why, which file, what to test. No empty one-liners and
-no 40-step epics. Use C2C control messages.
+本项目记忆仅用于本工作目录。收到 HANDOFF 后按摘要了解进展，重读必要代码，
+从 NEXT_EXPECTED_STEP 继续。操作任务使用 C2C 控制消息，说明理由、涉及文件和
+验证方法；不要空泛的一句结论，也不要冗长的数十步计划。普通查询不走执行循环。
 ```

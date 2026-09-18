@@ -127,11 +127,33 @@ then saves that collection link and starts chats from that page. Existing
 workspaces that already have a C2C chat stay on the old one-conversation
 style until you ask to switch.
 
+### CWC shorthand and query-only chat
+
+`cwc` (case-insensitive) and `Codex with ChatGPT` select the same skill.
+Informational questions, lookups, explanations and comparisons default to
+query-only ChatGPT chat unless the user opts out. General queries need no
+workspace, Project, plugin, doctor or pairing; current model/effort stays as-is.
+
+- "What is NAS?" / "Use cwc to compare these approaches": direct chat and
+  web search when needed, then return the answer and sources.
+- "Explain this project's login code": read relevant files through the
+  existing connector; do not edit files or run tests.
+- "Use CWC to fix login": plan → Codex execution/tests → ChatGPT review.
+
+Natural-language communication between Codex, ChatGPT and the user uses Chinese;
+code, commands, paths and protocol fields retain their original form.
+
+Advice in a query answer never authorizes execution. One workspace reuses one
+plugin across chats. Never delete/uninstall/recreate it to reconnect. Repair
+existing authorization when necessary, or update a changed URL in place only
+if the UI supports it; otherwise preserve the plugin and report the blocker.
+
 ### Optional stable hostname
 
 The default public address is a temporary Cloudflare URL. It changes when the
-bridge restarts, and Codex repairs ChatGPT by deleting that workspace's
-connector and adding it again.
+bridge restarts. Codex preserves the existing connector and updates its URL
+in place if supported; otherwise it reports blocked workspace access. General
+queries can continue without the connector.
 
 If you have a Cloudflare account and a domain already on Cloudflare, first-time
 setup (and the next coding session, once) will ask whether you want a stable

@@ -692,7 +692,7 @@ program
       allOk && !chatgptRepair.needed && !namedRepair.needed
         ? "Everything looks good."
         : chatgptRepair.needed
-          ? "本地已就绪，还需要在 ChatGPT 删除并重新添加该连接。"
+          ? reclaimUserMessage(chatgptRepair.connectorName)
           : namedRepair.needed
             ? "固定域名还没连上，需要先登录 Cloudflare。"
             : "仍有问题未解决，可尝试 `c2c restart --tunnel`。"

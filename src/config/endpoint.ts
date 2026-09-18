@@ -42,9 +42,9 @@ export function mcpUrlFromPublic(publicUrl: string | null | undefined): string |
 }
 
 /** What the Skill should do to THIS workspace's ChatGPT connector.
- *  `update` means the public address changed: Delete the old connector
- *  in ChatGPT, then create it again. Never click Reconnect (the old
- *  URL is dead and hangs on "This site cannot be reached"). */
+ *  `update` means the public address changed. Preserve the existing connector:
+ *  update its URL in place if supported, otherwise report the blocker.
+ *  It never authorizes deleting or recreating a connector. */
 export function connectorAction(
   previousMcpUrl: string | null | undefined,
   nextMcpUrl: string | null | undefined
@@ -76,5 +76,5 @@ export function connectorNameFor(opts: {
 }
 
 export function reclaimUserMessage(connectorName: string): string {
-  return `当前项目的安全连接地址已经失效。我会删除「${connectorName}」再按新地址加回去，其它项目的连接不动。请稍等。`;
+  return `当前项目的安全连接地址已变化。我会保留并复用「${connectorName}」，检查能否直接更新地址；若不支持，会说明阻塞原因，不会删除或重建插件。普通查询仍可直接聊天。`;
 }

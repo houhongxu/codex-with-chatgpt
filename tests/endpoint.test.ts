@@ -19,8 +19,10 @@ describe("connectorAction", () => {
 
   it("updates when the old address was reclaimed", () => {
     expect(connectorAction("https://old.trycloudflare.com/mcp", "https://new.trycloudflare.com/mcp")).toBe("update");
-    expect(reclaimUserMessage("Codex with ChatGPT")).toContain("删除");
-    expect(reclaimUserMessage("Codex with ChatGPT")).not.toContain("Reconnect");
+    const message = reclaimUserMessage("Codex with ChatGPT · Demo");
+    expect(message).toContain("保留并复用「Codex with ChatGPT · Demo」");
+    expect(message).toContain("不会删除或重建插件");
+    expect(message).toContain("普通查询仍可直接聊天");
   });
 
   it("does nothing without a next URL", () => {

@@ -1,6 +1,14 @@
 # Troubleshooting
 
-First move, always:
+First classify the request. General informational queries use ChatGPT directly:
+no plugin, workspace, doctor, pairing or local service is required. A broken
+workspace connector does not block general chat. Keep the current model/effort.
+
+Workspace queries also skip doctor, updates and repair; report unavailable
+access and wait for an explicit repair request. The following recovery steps
+apply only to action tasks or explicitly requested maintenance.
+
+For such a task that actually needs workspace access:
 
 ```
 c2c doctor
@@ -20,18 +28,17 @@ second bridge and do not Delete the ChatGPT connector. Wait and run doctor
 again. The local process may still be running.
 
 ### Everything was quit and ChatGPT can no longer connect
-Quitting Codex / the terminal stops the public address. The next `c2c doctor`
-starts a new address and sets `chatgptRepair.needed`. The Skill should tell the
-user that the old address expired, then **Delete** THIS workspace's
-connector (`chatgptRepair.connectorName`) and create it again with the new
-address (never click Reconnect — the old URL is dead). Other workspaces keep
-their own connectors so two projects can stay connected at once.
+If the bridge restarts and its temporary address changes, doctor may report
+`chatgptRepair.needed`. Preserve the existing connector, Project and chat.
+`connectorAction: "update"` requests an in-place address update if the UI
+supports it; it never means Delete + create. If editing the address is not
+available, report the blocker without deleting or duplicating the plugin.
 
-Mint the pairing code only when the ChatGPT Authorize form is on screen
-(`c2c pair`). After the connector is recreated, doctor being green is not
-enough: the saved ChatGPT conversation must pass `workspace_info` again. If
-that old chat still cannot read the workspace, open a new chat in the same
-Project (or switch long-chat) and continue there.
+At an unchanged address, an actual authorization failure can be repaired
+through the existing connector's authorization flow. Mint a pairing code
+only when the pairing form is ready. After repair, verify workspace_info in
+the saved chat before resuming workspace work. Do not create successive new
+chats just because a tool call failed. General queries can continue directly.
 
 Fixed ChatGPT pages for first-time setup and later repair (do not hunt the UI):
 
@@ -41,12 +48,11 @@ Fixed ChatGPT pages for first-time setup and later repair (do not hunt the UI):
   https://chatgpt.com/plugins#settings/Connectors?create-connector=true&redirectAfter=%2Fplugins
 
 ### Tunnel URL unreachable / ChatGPT says the connector is broken
-Same as above: `c2c doctor`, then Delete + recreate THIS workspace's
-connector if `chatgptRepair.needed`. Mint a pairing code with `c2c pair` only
-when the Authorize form is on screen.
-If this workspace uses a stable hostname, doctor sets `namedRepair` instead —
-re-login to Cloudflare (`c2c tunnel login`) and doctor again. Do not Delete
-the connector; the address did not change.
+For workspace action/repair tasks, run doctor and distinguish a connectivity failure from
+an authorization failure. Reuse the existing plugin. Repair its authorization
+or update its URL in place if supported; otherwise report the blocker.
+Never delete/recreate it. If using a stable hostname and doctor sets
+`namedRepair`, log in to Cloudflare and rerun doctor; keep the connector.
 
 ### I have a Cloudflare domain and want a stable hostname
 During first-time setup (or the next coding session, once), say you have a
@@ -71,10 +77,11 @@ corporate network, set `C2C_TUNNEL_PROTOCOL=http2` and restart the bridge.
 Leave it unset to keep cloudflared's default.
 
 ### ChatGPT gets 401 on every tool call
-The access token expired and refresh failed (e.g. after `c2c unpair` or a
-long offline period). Delete THIS workspace's connector if the address also
-changed; otherwise run Authorize again in ChatGPT and enter a fresh pairing
-code. Never use Reconnect when the public address has been replaced.
+A confirmed 401 can indicate expired/revoked authorization. At the same
+address, authorize the existing connector with a fresh pairing code. If the
+address changed, follow the in-place update path above. A generic account or
+tool error alone does not prove the credentials expired. Never delete/recreate
+the plugin, and never repeatedly reconnect against a known stale address.
 
 ### cloudflared is not installed
 macOS: `brew install cloudflared`
@@ -85,6 +92,9 @@ If cloudflared is installed in a custom location that is not on `PATH`, set
 `C2C_CLOUDFLARED_PATH` to the executable's absolute path before running `c2c`.
 
 ### Every new Codex chat “repairs” the connection / cannot write logs
+New chats reuse the same workspace connector. Creating a chat is not a reason
+to pair again or delete a plugin. General query chats skip local setup entirely.
+
 The C2C state directory lives outside the project (macOS:
 `~/Library/Application Support/codex-with-chatgpt`; Windows:
 `%LOCALAPPDATA%\codex-with-chatgpt`). Codex's default sandbox cannot write
@@ -116,10 +126,7 @@ matches this workspace and tell Codex「已找到」, or say you want the old
 long-chat instead. Each workspace has its own Project and its own connector.
 
 ### Completely stuck
-```
-c2c stop
-c2c setup
-```
-
-re-creates the bridge, tunnel and pairing session from scratch. Existing
-authorizations stay valid unless you also ran `c2c unpair`.
+Preserve the connector and checkpoint. Report the observed failure rather than
+resetting setup from scratch: restarting can change the temporary address.
+Continue independent general queries, and request only the action needed to
+restore workspace access. Never delete a plugin as a generic recovery step.
