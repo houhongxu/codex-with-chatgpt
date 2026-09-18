@@ -4,7 +4,11 @@ First classify the request. General informational queries use ChatGPT directly:
 no plugin, workspace, doctor, pairing or local service is required. A broken
 workspace connector does not block general chat. Keep the current model/effort.
 
-For a task that actually needs workspace access:
+Workspace queries also skip doctor, updates and repair; report unavailable
+access and wait for an explicit repair request. The following recovery steps
+apply only to action tasks or explicitly requested maintenance.
+
+For such a task that actually needs workspace access:
 
 ```
 c2c doctor
@@ -44,7 +48,7 @@ Fixed ChatGPT pages for first-time setup and later repair (do not hunt the UI):
   https://chatgpt.com/plugins#settings/Connectors?create-connector=true&redirectAfter=%2Fplugins
 
 ### Tunnel URL unreachable / ChatGPT says the connector is broken
-For workspace access, run doctor and distinguish a connectivity failure from
+For workspace action/repair tasks, run doctor and distinguish a connectivity failure from
 an authorization failure. Reuse the existing plugin. Repair its authorization
 or update its URL in place if supported; otherwise report the blocker.
 Never delete/recreate it. If using a stable hostname and doctor sets
@@ -126,5 +130,3 @@ Preserve the connector and checkpoint. Report the observed failure rather than
 resetting setup from scratch: restarting can change the temporary address.
 Continue independent general queries, and request only the action needed to
 restore workspace access. Never delete a plugin as a generic recovery step.
-
-只读工程查询也不会自动运行 doctor、更新或修复。若已有连接不可用，说明未能验证的本机信息；用户明确要求恢复后再进入上述修复流程。
