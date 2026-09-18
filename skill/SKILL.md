@@ -90,7 +90,7 @@ Wait for any generating reply before sending the query. Do not resume,
 overwrite or clear an in-progress coding checkpoint. Reuse this thread's
 workspace-bound chat; if none exists, use its existing Project/mode to open
 a chat, verify workspace_info and remember the URL in thread context without
-changing an active workspace session. Missing Project/binding is a limitation,
+writing any persistent session pointer (active or idle). Missing Project/binding is a limitation,
 not permission to create/configure one during a query.
 
 Ask ChatGPT to read only the relevant files through the exact connector and
@@ -646,7 +646,11 @@ ChatGPT's replies are expected to be substantive (see step 3). Docs: `docs/proto
    already provides. After sending a control message, wait per
    **In-app browser** §8.
 
-   **Resume from `session.checkpoint` before any INIT.** Missing checkpoint
+   **Resume from `session.checkpoint` before any INIT.** For an active task,
+   use `checkpoint.chatUrl` as its recovery URL and verify the visible TASK_ID
+   before sending control messages. A generic/query chat URL is not proof of
+   workspace binding; if session.url differs, do not use it to resume the task.
+   Missing checkpoint
    (legacy session): continue as a normal new/continued loop. A browser/js
    timeout is not a lost task — claim the original tab; do not INIT, re-run,
    or resend EXECUTED just because a wait timed out.

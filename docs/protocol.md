@@ -22,8 +22,9 @@ the full INIT → PLAN → EXECUTED → REVIEW loop.
 
 Reuse the chat bound to this Codex thread. A new workspace chat reuses the
 same connector; never delete/recreate a connector because a chat changed or
-a tool call failed. General query chats are tracked in thread context and
-must not replace a workspace session pointer. See the Skill for route details.
+a tool call failed. All query chat URLs are tracked in thread context and must not replace a
+workspace session pointer. Resume an active coding task at checkpoint.chatUrl
+and verify its TASK_ID; a generic chat URL is not verified workspace binding. See the Skill for route details.
 
 ## States (action requests only)
 
